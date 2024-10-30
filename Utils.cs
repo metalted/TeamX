@@ -104,7 +104,7 @@ namespace TeamX
         public int skybox;
         public List<string> blocks;
 
-        public EditorStateData()
+        public EditorStateData(bool b = true)
         {
             floor = -1;
             skybox = 0;

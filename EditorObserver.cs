@@ -1,8 +1,25 @@
 ﻿using HarmonyLib;
 using System;
+using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace TeamX
 {
+    //A player selects a block.
+    //The difference between the last selection and the current selection is the delta selection.
+    //The delta selection is send to the server and the server tries to lock it for this player.
+    //If the selection is already locked, send a Deselect Package back to the player with the json properties of all the blocks to set them back to their previous state in case they have been altered.
+
+    //The server should have the following functions.
+    //Unlock all selection (removes any locks from the blocks for this player)
+    //Lock selection (adds a lock to a specific block)
+    //Lo
+    //A lock selection
+
+
+
+
     public static class EditorObserver
     {
         // Declare events for each change type
@@ -11,6 +28,7 @@ namespace TeamX
         public static Action<string> BlockDestroyedEvent;
         public static Action<int> FloorUpdatedEvent;
         public static Action<int> SkyboxUpdatedEvent;
+        private static List<string> lastSelectedUIDs = new List<string>();
 
         // Methods to invoke events
         public static void BlockCreated(string blockJSON)
@@ -151,6 +169,34 @@ namespace TeamX
                         break;
                 }
             }
+        }
+    }
+
+    [HarmonyPatch(typeof(LEV_Selection), "RegisterManualSelectionBreakLock")]
+    public class LEV_SelectionRegisterManualSelectionBreakLockPatch
+    {
+        public static void Postfix(ref List<string> selectionUIDs_before, ref List<string> selectionUIDs_after)
+        {
+            Debug.LogError("Before (" + selectionUIDs_before.Count + "): " + string.Join(',', selectionUIDs_before));
+            Debug.LogError("After (" + selectionUIDs_after.Count + "): " + string.Join(',', selectionUIDs_after));
+        }
+    }
+
+    [HarmonyPatch(typeof(LEV_Selection), "DeselectAllBlocks")]
+    public class LEV_SelectionDeselectAllBlocksPatch
+    {
+        public static void Postfix()
+        {
+            Debug.LogError("Deselect All Blocks");
+        }
+    }
+
+    [HarmonyPatch(typeof(LEV_Selection), "UndoRedoReselection")]
+    public class LEV_SelectionUndoRedoReselection
+    {
+        public static void Postfix(ref List<BlockProperties> newSelection)
+        {
+            Debug.LogWarning("UndoRedoSelect (" + newSelection.Count + "): " + string.Join(',', newSelection.Select(bp => bp.UID).ToList()));
         }
     }
 }
