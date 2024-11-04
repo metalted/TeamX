@@ -30,7 +30,7 @@ namespace TeamX
             return SendMessage(logInMessage);
         }
 
-        private bool SendMessage(NetOutgoingMessage message)
+        public bool SendMessage(NetOutgoingMessage message)
         {
             if (client == null)
             {
@@ -153,6 +153,40 @@ namespace TeamX
             message.Write((byte) NetworkMessageType.CustomMessage);
             message.Write(payload);
             return message;
-        }        
+        }       
+        
+        public NetOutgoingMessage CreateClaimSelectionMessage(List<string> blockUIDs)
+        {
+            if (client == null)
+            {
+                return null;
+            }
+
+            NetOutgoingMessage message = client.CreateMessage();
+            message.Write((byte)NetworkMessageType.ClaimSelectionEvent);
+            message.Write(blockUIDs.Count);
+            foreach(string uid in blockUIDs)
+            {
+                message.Write(uid);
+            }
+            return message;
+        }
+
+        public NetOutgoingMessage CreateUnclaimSelectionMessage(List<string> blockUIDs)
+        {
+            if (client == null)
+            {
+                return null;
+            }
+
+            NetOutgoingMessage message = client.CreateMessage();
+            message.Write((byte)NetworkMessageType.UnclaimSelectionEvent);
+            message.Write(blockUIDs.Count);
+            foreach (string uid in blockUIDs)
+            {
+                message.Write(uid);
+            }
+            return message;
+        }
     }
 }

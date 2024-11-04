@@ -1,5 +1,4 @@
-﻿using Crosstales.BWF.Util;
-using Lidgren.Network;
+﻿using Lidgren.Network;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -27,6 +26,7 @@ namespace TeamX
         public static Action<PlayerStateData> PlayerStateEvent;
         public static Action<PlayerTransformData> PlayerTransformEvent;
         public static Action<string> CustomMessageEvent;
+        public static Action<List<string>> AlreadyClaimedEvent;
 
         //Initializing the network means creating and starting the client.
         public static void Initialize()
@@ -38,7 +38,58 @@ namespace TeamX
             inbound = new InboundMessageHandler();
             outbound = new OutboundMessageHandler(client);
 
-            client.Start();
+            client.Start();            
+        }
+
+        public static void SubscribeToEvents()
+        {
+            //When we enter the level editor, send state change
+            GameObserver.EnteredLevelEditor += () =>
+            {
+                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage((byte)CharacterMode.Build);
+                outbound.SendMessage(msg);
+            };
+
+            //When we go to race mode, send state change
+            GameObserver.EnteredGame += () =>
+            {
+                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage((byte)CharacterMode.Race);
+                outbound.SendMessage(msg);
+            };
+
+            //State change during racing
+            GameObserver.LocalStateChange += (stateData) =>
+            {
+                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage(stateData.state);
+                outbound.SendMessage(msg);
+            };
+
+            //When transform changes send it to the server.
+            GameObserver.LocalTransformChange += (transformData) =>
+            {
+                NetOutgoingMessage msg = outbound.CreatePlayerTransformDataMessage(transformData.position, transformData.euler, (byte)PlayerManagement.GetLocalCharacterMode());
+                outbound.SendMessage(msg);
+            };
+
+            //Send updates about level editor changes.
+            EditorObserver.LevelEditorChangesEvent += (changes) =>
+            {
+                NetOutgoingMessage msg = outbound.CreateLevelEditorChangesMessage(changes);
+                outbound.SendMessage(msg);
+            };
+
+            //Send messages about selection changes.
+            SelectionObserver.BlocksAddedToSelection += (added) =>
+            {
+                NetOutgoingMessage msg = outbound.CreateClaimSelectionMessage(added);
+                outbound.SendMessage(msg);
+            };
+
+            SelectionObserver.BlocksRemovedFromSelection += (removed) =>
+            {
+                NetOutgoingMessage msg = outbound.CreateUnclaimSelectionMessage(removed);
+                outbound.SendMessage(msg);
+            };
         }
 
         //Read the messages when necessary.
@@ -94,7 +145,7 @@ namespace TeamX
         {
             connectionStatus = ConnectionStatus.Connected;
 
-            //Log in with out user data and request the server data.
+            //Log in with our user data and request the server data.
             outbound.LogIn(true);
 
             ConnectedToServer?.Invoke();           

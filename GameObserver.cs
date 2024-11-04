@@ -14,17 +14,19 @@ namespace TeamX
         public static Action EnteredLevelEditor;
         public static Action EnteredGame;
         public static Action EnteredMainMenu;
+        public static Action QuitEditor;
+        public static Action ApplicationQuit;
         public static Action<PlayerTransformData> LocalTransformChange;
         public static Action<PlayerStateData> LocalStateChange;
 
         public static LEV_LevelEditorCentral central { get; private set; }
+
+        private static string currentScene = "";
+
         public static SetupGame game { get; private set; }
 
-        public static void Update()
-        {
-            SelectionObserver.Update();
-        }
-        
+        public static string GetCurrentScene() { return currentScene; }
+
         public static bool InLevelEditor()
         {
             return central != null;
@@ -38,6 +40,16 @@ namespace TeamX
         public static void OnMainMenu()
         {
             EnteredMainMenu?.Invoke();
+        }
+
+        public static void OnSceneLoad(string loadedScene)
+        {
+            if (currentScene == "LevelEditor2" && loadedScene == "3D_MainMenu")
+            {
+                QuitEditor?.Invoke();
+            }
+
+            currentScene = loadedScene;
         }
 
         public static void OnLevelEditor(LEV_LevelEditorCentral levCentral)
@@ -81,7 +93,10 @@ namespace TeamX
     {
         public static void Postfix(LEV_LevelEditorCentral __instance)
         {
-            GameObserver.OnLevelEditor(__instance);
+            if(TeamXManager.IsTeamXEnabled())
+            {
+                GameObserver.OnLevelEditor(__instance);
+            }            
         }
     }
 
@@ -90,7 +105,10 @@ namespace TeamX
     {
         public static void Postfix(SetupGame __instance)
         {
-            GameObserver.OnGame(__instance);
+            if (TeamXManager.IsTeamXEnabled())
+            {
+                GameObserver.OnGame(__instance);
+            }
         }
     }
 
@@ -99,11 +117,14 @@ namespace TeamX
     {
         public static void Postfix(GameMaster __instance)
         {
-            Transform localRacer = __instance.PlayersReady[0].transform;
-            if(localRacer.gameObject.GetComponent<PlayerObserver>() == null)
+            if (TeamXManager.IsTeamXEnabled())
             {
-                PlayerObserver observer = localRacer.gameObject.AddComponent<PlayerObserver>();
-                observer.TransformChange += GameObserver.OnLocalTransformChange;
+                Transform localRacer = __instance.PlayersReady[0].transform;
+                if (localRacer.gameObject.GetComponent<PlayerObserver>() == null)
+                {
+                    PlayerObserver observer = localRacer.gameObject.AddComponent<PlayerObserver>();
+                    observer.TransformChange += GameObserver.OnLocalTransformChange;
+                }
             }
         }
     }
@@ -114,14 +135,27 @@ namespace TeamX
     {
         public static void Prefix(ref byte newState, ref string source, ref bool playSound)
         {
-            if (newState == (byte)3)
+            if (TeamXManager.IsTeamXEnabled())
             {
-                GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = 2 });
+                if (newState == (byte)3)
+                {
+                    GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = 2 });
+                }
+                else
+                {
+                    GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = 1 });
+                }
             }
-            else
-            {
-                GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = 1 });
-            }            
+        }
+    }
+
+    //Patch will call a function with the name of the scene that is going to be loaded.
+    [HarmonyPatch(typeof(UnityEngine.SceneManagement.SceneManager), "LoadScene", new[] { typeof(string) })]
+    public class SceneLoadPatch
+    {
+        public static void Prefix(ref string sceneName)
+        {
+            GameObserver.OnSceneLoad(sceneName);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Lidgren.Network;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,8 +10,9 @@ namespace TeamX
         public static Shpleeble shpleeblePrefab;
         public static Dictionary<int, Shpleeble> remotePlayers = new Dictionary<int, Shpleeble>();
         public static bool showRemotePlayers = true;
+        public static CharacterMode localCharacterMode = CharacterMode.Build;
 
-        public static void Initialize()
+        public static void SubscribeToEvents()
         {
             GameObserver.EnteredMainMenu += ProcessMainMenuEntry;
             NetworkController.ServerPlayerDataEvent += ProcessServerPlayerData;
@@ -18,6 +20,29 @@ namespace TeamX
             NetworkController.PlayerLeftEvent += ProcessRemotePlayerLeft;
             NetworkController.PlayerTransformEvent += ProcessRemotePlayerTransformData;
             NetworkController.PlayerStateEvent += ProcessRemotePlayerStateData;
+
+            //When we enter the level editor, send state change
+            GameObserver.EnteredLevelEditor += () =>
+            {
+                localCharacterMode = CharacterMode.Build;
+            };
+
+            //When we go to race mode, send state change
+            GameObserver.EnteredGame += () =>
+            {
+                localCharacterMode = CharacterMode.Race;
+            };
+
+            //State change during racing
+            GameObserver.LocalStateChange += (stateData) =>
+            {
+                localCharacterMode = (CharacterMode) stateData.state;
+            };
+        }
+
+        public static CharacterMode GetLocalCharacterMode()
+        {
+            return localCharacterMode;
         }
 
         public static void Clear()
@@ -173,6 +198,8 @@ namespace TeamX
     
         private static void ProcessMainMenuEntry()
         {
+            Clear();
+
             if (shpleeblePrefab == null)
             {
                 shpleeblePrefab = TeamX.Utils.CreateShpleeblePrefabInMainMenu();

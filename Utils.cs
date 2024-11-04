@@ -33,7 +33,10 @@ namespace TeamX
         BlockChangeEvent = 103,
         EditorFloorEvent = 104,
         EditorSkyboxEvent = 105,
-        CustomMessage = 200
+        CustomMessage = 200,
+        ClaimSelectionEvent = 210,
+        UnclaimSelectionEvent = 211,
+        AlreadyClaimedEvent = 212
     }
 
     public struct LevelEditorChange

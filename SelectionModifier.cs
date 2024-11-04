@@ -8,6 +8,17 @@ namespace TeamX
 {
     public static class SelectionModifier
     {
+        public static void SubscribeToEvents()
+        {
+            NetworkController.AlreadyClaimedEvent += (alreadyClaimed) =>
+            {
+                foreach (string claimed in alreadyClaimed)
+                {
+                    DeselectBlock(claimed);
+                }
+            };
+        }
+
         public static void DeselectAllBlocks(bool notify = false)
         {
             GameObserver.central.selection.DeselectAllBlocks(true, "");

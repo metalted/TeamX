@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Purchasing;
 
 namespace TeamX
 {
@@ -6,36 +7,6 @@ namespace TeamX
     {
         public void SubscribeToAllEvents()
         {
-            // Subscribe to BlockCreatedEvent
-            EditorObserver.BlockCreatedEvent += (properties) =>
-            {
-                Debug.LogWarning($"BlockCreatedEvent called with properties: {properties}");
-            };
-
-            // Subscribe to BlockUpdatedEvent
-            EditorObserver.BlockUpdatedEvent += (UID, properties) =>
-            {
-                Debug.LogWarning($"BlockUpdatedEvent called with UID: {UID}, properties: {properties}");
-            };
-
-            // Subscribe to BlockDestroyedEvent
-            EditorObserver.BlockDestroyedEvent += (UID) =>
-            {
-                Debug.LogWarning($"BlockDestroyedEvent called with blockId: {UID}");
-            };
-
-            // Subscribe to FloorUpdatedEvent
-            EditorObserver.FloorUpdatedEvent += (floorID) =>
-            {
-                Debug.LogWarning($"FloorUpdatedEvent called with floorID: {floorID}");
-            };
-
-            // Subscribe to SkyboxUpdatedEvent
-            EditorObserver.SkyboxUpdatedEvent += (skyboxID) =>
-            {
-                Debug.LogWarning($"SkyboxUpdatedEvent called with skyboxID: {skyboxID}");
-            };
-
             // Subscribe to BlocksAddedToSelection
             SelectionObserver.BlocksAddedToSelection += (added) =>
             {
@@ -138,6 +109,26 @@ namespace TeamX
             {
                 Debug.LogWarning($"CustomMessageEvent called with message: {message}");
             };
+
+            //Subscribe to AlreadClaimedEvent
+            NetworkController.AlreadyClaimedEvent += (uids) =>
+            {
+                Debug.LogWarning($"AlreadyClaimEvent called with claimed UIDs: {string.Join(',', uids)}");
+            };
+
+            //Subscribe to ConfigReloaded
+            TeamXConfiguration.ConfigReloaded += () =>
+            {
+                Debug.LogWarning($"ConfigReload called");
+            };
+
+            //Subscribe to TeamkistButtonPressed
+            TeamXUserInterface.TeamkistButtonPressed += () =>
+            {
+                Debug.LogWarning("Teamkist button pressed");
+            };
+
+
         }
     }
 }

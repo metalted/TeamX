@@ -35,6 +35,13 @@ namespace TeamX
                 case NetworkMessageType.CustomMessage:
                     HandleCustomMessage(incomingMessage);
                     break;
+                case NetworkMessageType.ClaimSelectionEvent:
+                    break;
+                case NetworkMessageType.UnclaimSelectionEvent:
+                    break;
+                case NetworkMessageType.AlreadyClaimedEvent:
+                    HandleAlreadyClaimedEvent(incomingMessage);
+                    break;
                 default:
                     // Optional: handle unknown message types here if needed
                     break;
@@ -200,8 +207,19 @@ namespace TeamX
         private void HandleCustomMessage(NetIncomingMessage incomingMessage) 
         {
             string data = incomingMessage.ReadString();
-            //NetworkController.CustomMessageEvent?.Invoke(data);
             NetworkController.CustomMessageEvent.Invoke(data);
+        }
+
+        private void HandleAlreadyClaimedEvent(NetIncomingMessage incomingMessage)
+        {
+            int uidCount = incomingMessage.ReadInt32();
+            List<string> uids = new List<string>();
+            for (int i = 0; i < uidCount; i++)
+            {
+                uids.Add(incomingMessage.ReadString());
+            }
+
+            NetworkController.AlreadyClaimedEvent?.Invoke(uids);
         }
     }
 }
