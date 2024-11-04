@@ -19,6 +19,11 @@ namespace TeamX
 
         public static LEV_LevelEditorCentral central { get; private set; }
         public static SetupGame game { get; private set; }
+
+        public static void Update()
+        {
+            SelectionObserver.Update();
+        }
         
         public static bool InLevelEditor()
         {

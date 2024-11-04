@@ -36,12 +36,25 @@ namespace TeamX
                 Debug.LogWarning($"SkyboxUpdatedEvent called with skyboxID: {skyboxID}");
             };
 
+            // Subscribe to BlocksAddedToSelection
+            SelectionObserver.BlocksAddedToSelection += (added) =>
+            {
+                Debug.LogWarning($"BlocksAddedToSelection called with added UIDs: {string.Join(',', added)}");
+            };
+
+            //Subscribe to BlocksRemovedFromSelection
+            SelectionObserver.BlocksRemovedFromSelection += (removed) =>
+            {
+                Debug.LogWarning($"BlocksRemovedFromSelection called with removed UIDs: {string.Join(',', removed)}");
+            };
+
             // Subscribe to EnteredLevelEditor
             GameObserver.EnteredLevelEditor += () =>
             {
                 Debug.LogWarning("EnteredLevelEditor event called.");
             };
 
+            //Subscribe to EnteredMainMenu
             GameObserver.EnteredMainMenu += () =>
             {
                 Debug.LogWarning("Entered Main Menu event called.");

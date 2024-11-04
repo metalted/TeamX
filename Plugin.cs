@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using HarmonyLib;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace TeamX
 {
@@ -20,8 +21,15 @@ namespace TeamX
 
             Instance = this;
 
+            SelectionObserver.Initialize();
+
             eventLogger = new EventLogger();
             eventLogger.SubscribeToAllEvents();
         }
-    }    
+
+        private void Update()
+        {
+            GameObserver.Update();
+        }
+    }
 }

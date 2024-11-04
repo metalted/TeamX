@@ -68,6 +68,6 @@ namespace TeamX
         {
             central.skybox.SetToSkybox(skyboxID, true);
             return true;
-        }
+        }        
     }
 }
