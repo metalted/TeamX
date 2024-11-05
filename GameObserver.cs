@@ -1,32 +1,51 @@
 ﻿using HarmonyLib;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace TeamX
 {
-    //This class will observe the state of the game and scenes and watch the local players movements and actions.
     public static class GameObserver
     {
+        //These events are ALWAYS called.
+        public static Action EnteredMainMenu;        
+        public static Action ApplicationQuit;
+
+        //The events are only called when teamx is enabled.
         public static Action EnteredLevelEditor;
         public static Action EnteredGame;
-        public static Action EnteredMainMenu;
-        public static Action QuitEditor;
-        public static Action ApplicationQuit;
+        public static Action QuitLevelEditor;
         public static Action<PlayerTransformData> LocalTransformChange;
         public static Action<PlayerStateData> LocalStateChange;
 
-        public static LEV_LevelEditorCentral central { get; private set; }
-
+        //Reference to the current central and game.
+        private static LEV_LevelEditorCentral central;
+        private static SetupGame game;
         private static string currentScene = "";
 
-        public static SetupGame game { get; private set; }
+        public static void SetCentral(LEV_LevelEditorCentral c)
+        {
+            central = c;
+        }
 
-        public static string GetCurrentScene() { return currentScene; }
+        public static LEV_LevelEditorCentral GetCentral()
+        {
+            return central;
+        }
 
+        public static void SetGame(SetupGame g)
+        {
+            game = g;
+        }
+
+        public static SetupGame GetGame()
+        {
+            return game;
+        }
+
+        public static void SetCurrentScene(string scene) { currentScene = scene; }
+
+        public static string GetCurrentScene() { return currentScene; }        
+        
         public static bool InLevelEditor()
         {
             return central != null;
@@ -34,47 +53,7 @@ namespace TeamX
 
         public static bool InGame()
         {
-            return false;
-        }
-
-        public static void OnMainMenu()
-        {
-            EnteredMainMenu?.Invoke();
-        }
-
-        public static void OnSceneLoad(string loadedScene)
-        {
-            if (currentScene == "LevelEditor2" && loadedScene == "3D_MainMenu")
-            {
-                QuitEditor?.Invoke();
-            }
-
-            currentScene = loadedScene;
-        }
-
-        public static void OnLevelEditor(LEV_LevelEditorCentral levCentral)
-        {
-            central = levCentral;
-            EnteredLevelEditor?.Invoke();
-            LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = (byte)CharacterMode.Build });
-
-            if(central.cam.cameraTransform.gameObject.GetComponent<PlayerObserver>() == null)
-            {
-                PlayerObserver observer = central.cam.cameraTransform.gameObject.AddComponent<PlayerObserver>();
-                observer.TransformChange += GameObserver.OnLocalTransformChange;
-            }
-        }
-
-        public static void OnGame(SetupGame setupGame)
-        {
-            game = setupGame;
-            EnteredGame?.Invoke();
-            LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = (byte)CharacterMode.Race });
-        }
-
-        public static void OnLocalTransformChange(PlayerTransformData data)
-        {
-            LocalTransformChange?.Invoke(data);
+            return game != null;
         }
     }
 
@@ -84,7 +63,7 @@ namespace TeamX
     {
         public static void Prefix()
         {
-            GameObserver.OnMainMenu();            
+            GameObserver.EnteredMainMenu?.Invoke();
         }
     }
 
@@ -93,10 +72,19 @@ namespace TeamX
     {
         public static void Postfix(LEV_LevelEditorCentral __instance)
         {
+            GameObserver.SetCentral(__instance);
+
             if(TeamXManager.IsTeamXEnabled())
             {
-                GameObserver.OnLevelEditor(__instance);
-            }            
+                GameObserver.EnteredLevelEditor?.Invoke();
+                GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = (byte)CharacterMode.Build });
+
+                if (GameObserver.GetCentral().cam.cameraTransform.gameObject.GetComponent<PlayerObserver>() == null)
+                {
+                    PlayerObserver observer = GameObserver.GetCentral().cam.cameraTransform.gameObject.AddComponent<PlayerObserver>();
+                    observer.TransformChange += (data) => { GameObserver.LocalTransformChange?.Invoke(data); };
+                }
+            }           
         }
     }
 
@@ -105,9 +93,12 @@ namespace TeamX
     {
         public static void Postfix(SetupGame __instance)
         {
+            GameObserver.SetGame(__instance);
+
             if (TeamXManager.IsTeamXEnabled())
             {
-                GameObserver.OnGame(__instance);
+                GameObserver.EnteredGame?.Invoke();
+                GameObserver.LocalStateChange?.Invoke(new PlayerStateData() { playerID = -1, state = (byte)CharacterMode.Race });
             }
         }
     }
@@ -123,7 +114,7 @@ namespace TeamX
                 if (localRacer.gameObject.GetComponent<PlayerObserver>() == null)
                 {
                     PlayerObserver observer = localRacer.gameObject.AddComponent<PlayerObserver>();
-                    observer.TransformChange += GameObserver.OnLocalTransformChange;
+                    observer.TransformChange += (data) => { GameObserver.LocalTransformChange?.Invoke(data); };
                 }
             }
         }
@@ -155,7 +146,15 @@ namespace TeamX
     {
         public static void Prefix(ref string sceneName)
         {
-            GameObserver.OnSceneLoad(sceneName);
+            string currentScene = GameObserver.GetCurrentScene();
+            if(currentScene == "LevelEditor2" && sceneName == "3D_MainMenu")
+            {
+                if (TeamXManager.IsTeamXEnabled())
+                {
+                    GameObserver.QuitLevelEditor?.Invoke();
+                }
+            }
+            GameObserver.SetCurrentScene(sceneName);
         }
     }
 }

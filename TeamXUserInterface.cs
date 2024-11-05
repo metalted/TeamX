@@ -64,7 +64,7 @@ namespace TeamX
         //Grey out the load button in the level editor while in teamkist mode, because loading a level will mess up the server.
         public static void DisableLoadButton()
         {
-            LEV_CustomButton loadButton = GameObserver.central.tool.button_load;
+            LEV_CustomButton loadButton = GameObserver.GetCentral().tool.button_load;
             loadButton.normalColor = Color.grey;
             loadButton.hoverColor = Color.grey;
             loadButton.clickColor = Color.grey;

@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace TeamX
 {
+    //This script can be attached to a transform and it will fire an event every <updateInterval> seconds with the position and rotation data.
     public class PlayerObserver : MonoBehaviour
     {
         private float updateInterval = 0.15f;

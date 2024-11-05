@@ -9,9 +9,18 @@ using UnityEngine;
 
 namespace TeamX
 {
+    public enum StatusCode
+    {
+        Null,
+        Success,
+        ClientNull,
+        InvalidConnectionStatus,
+        Unexpected
+    }
+
     public enum ConnectionStatus
     {
-        NotConnected, Connecting, Connected, Disconnecting
+        Disconnected, Connecting, Connected, Disconnecting
     }
     public enum CharacterMode 
     { 
@@ -101,13 +110,14 @@ namespace TeamX
         public int playerID;
         public byte state;
     }
-    public struct EditorStateData
+
+    public class EditorStateData
     {
         public int floor;
         public int skybox;
         public List<string> blocks;
 
-        public EditorStateData(bool b = true)
+        public EditorStateData()
         {
             floor = -1;
             skybox = 0;

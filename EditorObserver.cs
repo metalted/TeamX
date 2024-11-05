@@ -8,6 +8,7 @@ namespace TeamX
 {
     public static class EditorObserver
     {
+        //This event is only called when TeamX is enabled.
         public static Action<List<LevelEditorChange>> LevelEditorChangesEvent;
     }
 
@@ -17,6 +18,11 @@ namespace TeamX
     {
         public static void Postfix(ref Change_Collection whatChanged, ref string source)
         {
+            if(!TeamXManager.IsTeamXEnabled())
+            {
+                return;
+            }
+
             List<LevelEditorChange> changes = new List<LevelEditorChange>();
 
             foreach (Change_Single changeSingle in whatChanged.changeList)
@@ -80,6 +86,11 @@ namespace TeamX
     {
         public static void Postfix(LEV_UndoRedo __instance)
         {
+            if (!TeamXManager.IsTeamXEnabled())
+            {
+                return;
+            }
+
             Change_Collection changeCollection = __instance.historyList[__instance.currentHistoryPosition];
             List<LevelEditorChange> changes = new List<LevelEditorChange>();
 
@@ -143,6 +154,11 @@ namespace TeamX
     {
         public static void Postfix(LEV_UndoRedo __instance)
         {
+            if (!TeamXManager.IsTeamXEnabled())
+            {
+                return;
+            }
+
             Change_Collection changeCollection = __instance.historyList[__instance.currentHistoryPosition];
             List<LevelEditorChange> changes = new List<LevelEditorChange>();
 

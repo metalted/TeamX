@@ -10,8 +10,10 @@ namespace TeamX
     {
         public static void SubscribeToEvents()
         {
+            //This event will only fire if the network is running.
             NetworkController.AlreadyClaimedEvent += (alreadyClaimed) =>
             {
+                //Deselect all already claimed blocks.
                 foreach (string claimed in alreadyClaimed)
                 {
                     DeselectBlock(claimed);
@@ -19,24 +21,38 @@ namespace TeamX
             };
         }
 
+        //Deselect all blocks in the local editor.
         public static void DeselectAllBlocks(bool notify = false)
         {
-            GameObserver.central.selection.DeselectAllBlocks(true, "");
+            if(!GameObserver.InLevelEditor())
+            {
+                return;
+            }
 
+            GameObserver.GetCentral().selection.DeselectAllBlocks(true, "");
+
+            //By syncing the selection observer, no event will be fired about the changed selection.
             if (!notify)
             {
                 SelectionObserver.Sync();
             }
         }
 
+        //Deselect a single block by UID, if it is found and selected locally.
         public static void DeselectBlock(string blockUID, bool notify = false)
         {
-            int blockIndex = GameObserver.central.selection.list.FindIndex(item => item.UID == blockUID);
+            if (!GameObserver.InLevelEditor())
+            {
+                return;
+            }
+
+            int blockIndex = GameObserver.GetCentral().selection.list.FindIndex(item => item.UID == blockUID);
 
             if (blockIndex != -1)
             {
-                GameObserver.central.selection.RemoveBlockAt(blockIndex, true, true);
+                GameObserver.GetCentral().selection.RemoveBlockAt(blockIndex, true, true);
 
+                //By syncing the selection observer, no event will be fired about the changed selection.
                 if (!notify)
                 {
                     SelectionObserver.Sync();
@@ -44,16 +60,23 @@ namespace TeamX
             }
         }
 
+        //Select a single block by UID, if it is found and not already selected.
         public static void SelectBlock(string blockUID, bool notify = false)
         {
-            int blockIndex = GameObserver.central.selection.list.FindIndex(item => item.UID == blockUID);
+            if (!GameObserver.InLevelEditor())
+            {
+                return;
+            }
+
+            int blockIndex = GameObserver.GetCentral().selection.list.FindIndex(item => item.UID == blockUID);
             if (blockIndex == -1)
             {
-                if (GameObserver.central.undoRedo.allBlocksDictionary.ContainsKey(blockUID))
+                if (GameObserver.GetCentral().undoRedo.allBlocksDictionary.ContainsKey(blockUID))
                 {
-                    GameObserver.central.selection.AddThisBlock(GameObserver.central.undoRedo.allBlocksDictionary[blockUID]);
+                    GameObserver.GetCentral().selection.AddThisBlock(GameObserver.GetCentral().undoRedo.allBlocksDictionary[blockUID]);
                 }
 
+                //By syncing the selection observer, no event will be fired about the changed selection.
                 if (!notify)
                 {
                     SelectionObserver.Sync();

@@ -7,17 +7,18 @@ namespace TeamX
 {
     public static class NetworkController
     {
-        //Network
+        //Network configuration
         private static NetPeerConfiguration netPeerConfiguration;
         private static NetClient client = null;
         private static ConnectionStatus connectionStatus;
-
+        //Message handlers
         private static InboundMessageHandler inbound;
         private static OutboundMessageHandler outbound;
-
-        // Define events for connection and disconnection
+        //Network Events
         public static Action ConnectedToServer;
         public static Action DisconnectedFromServer;
+
+        //All these events will only be fired when the network is being updated.
         public static Action<List<LevelEditorChange>> LevelEditorChangesEvent;
         public static Action<EditorStateData> ServerDataEvent;
         public static Action<List<PlayerData>> ServerPlayerDataEvent;
@@ -28,13 +29,14 @@ namespace TeamX
         public static Action<string> CustomMessageEvent;
         public static Action<List<string>> AlreadyClaimedEvent;
 
-        //Initializing the network means creating and starting the client.
         public static void Initialize()
         {
+            //Create the network client
             netPeerConfiguration = new NetPeerConfiguration("Teamkist");
             netPeerConfiguration.ConnectionTimeout = 5000;
             client = new NetClient(netPeerConfiguration);
 
+            //Create the message handlers.
             inbound = new InboundMessageHandler();
             outbound = new OutboundMessageHandler(client);
 
@@ -43,156 +45,157 @@ namespace TeamX
 
         public static void SubscribeToEvents()
         {
+            //When we have connected to the server, we send our login data to the server.
+            ConnectedToServer += () =>
+            {
+                //Log in with our user data and request the server data. Once we have received the data and store it, we will load the level editor scene.
+                outbound.LogIn(true);
+            };
+
             //When we enter the level editor, send state change
-            GameObserver.EnteredLevelEditor += () =>
-            {
-                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage((byte)CharacterMode.Build);
-                outbound.SendMessage(msg);
-            };
-
+            GameObserver.EnteredLevelEditor += () => { outbound.SendPlayerState((byte)CharacterMode.Build); };
             //When we go to race mode, send state change
-            GameObserver.EnteredGame += () =>
-            {
-                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage((byte)CharacterMode.Race);
-                outbound.SendMessage(msg);
-            };
-
+            GameObserver.EnteredGame += () => { outbound.SendPlayerState((byte)CharacterMode.Race); };
             //State change during racing
-            GameObserver.LocalStateChange += (stateData) =>
-            {
-                NetOutgoingMessage msg = outbound.CreatePlayerStateDataMessage(stateData.state);
-                outbound.SendMessage(msg);
-            };
-
+            GameObserver.LocalStateChange += (stateData) => { outbound.SendPlayerState(stateData.state); };
             //When transform changes send it to the server.
-            GameObserver.LocalTransformChange += (transformData) =>
-            {
-                NetOutgoingMessage msg = outbound.CreatePlayerTransformDataMessage(transformData.position, transformData.euler, (byte)PlayerManagement.GetLocalCharacterMode());
-                outbound.SendMessage(msg);
-            };
-
+            GameObserver.LocalTransformChange += (transformData) => { outbound.SendPlayerTransformData(transformData); };
             //Send updates about level editor changes.
-            EditorObserver.LevelEditorChangesEvent += (changes) =>
-            {
-                NetOutgoingMessage msg = outbound.CreateLevelEditorChangesMessage(changes);
-                outbound.SendMessage(msg);
-            };
-
+            EditorObserver.LevelEditorChangesEvent += (changes) => { outbound.SendLevelEditorChanges(changes); };
             //Send messages about selection changes.
-            SelectionObserver.BlocksAddedToSelection += (added) =>
-            {
-                NetOutgoingMessage msg = outbound.CreateClaimSelectionMessage(added);
-                outbound.SendMessage(msg);
-            };
-
-            SelectionObserver.BlocksRemovedFromSelection += (removed) =>
-            {
-                NetOutgoingMessage msg = outbound.CreateUnclaimSelectionMessage(removed);
-                outbound.SendMessage(msg);
-            };
+            SelectionObserver.BlocksAddedToSelection += (added) => { outbound.SendSelectionClaim(added); };
+            //Send messages about unselection chages.
+            SelectionObserver.BlocksRemovedFromSelection += (removed) => { outbound.SendSelectionUnclaim(removed); };
         }
 
-        //Read the messages when necessary.
-        public static void Update()
+        public static StatusCode Update()
         {
             if (connectionStatus == ConnectionStatus.Connecting || connectionStatus == ConnectionStatus.Connected)
             {
-                ReadMessages();
+                return ReadMessages();
             }
+            return StatusCode.InvalidConnectionStatus;
         }
 
-        public static bool ConnectToServer(string ip, int port)
+        public static StatusCode ConnectToServer(string ip, int port)
         {
             if (client == null)
             {
-                return false;
+                return StatusCode.ClientNull;
             }
 
-            if (connectionStatus == ConnectionStatus.Connecting || connectionStatus == ConnectionStatus.Connected)
+            if (connectionStatus == ConnectionStatus.Connecting) 
             {
-                return false;
+                return StatusCode.InvalidConnectionStatus;
+            }
+
+            if(connectionStatus == ConnectionStatus.Connected)
+            {
+                return StatusCode.InvalidConnectionStatus;
             }
 
             try
             {
-                connectionStatus = ConnectionStatus.Connecting;
+                
                 client.Connect(ip, port);
-                return true;
+                connectionStatus = ConnectionStatus.Connecting;
+                return StatusCode.Success;
             }
             catch
             {
-                return false;
+                return StatusCode.Unexpected;
             }
         }
 
-        public static bool Disconnect()
+        public static StatusCode Disconnect()
         {
-            if (client != null)
+            if (client == null)
             {
-                return false;
+                return StatusCode.ClientNull;
             }
 
-            if(connectionStatus == ConnectionStatus.Disconnecting || connectionStatus == ConnectionStatus.NotConnected || connectionStatus == ConnectionStatus.Connecting)
+            if(connectionStatus == ConnectionStatus.Disconnecting)
             {
-                return false;
+                return StatusCode.InvalidConnectionStatus;
             }
 
-            client.Disconnect("");
-            return true;
+            if (connectionStatus == ConnectionStatus.Disconnected)
+            {
+                return StatusCode.InvalidConnectionStatus;
+            }
+
+            if(connectionStatus == ConnectionStatus.Connecting)
+            {
+                return StatusCode.InvalidConnectionStatus;
+            }
+
+            try
+            {
+                client.Disconnect("");
+                connectionStatus = ConnectionStatus.Disconnecting;
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }        
+
+        public static StatusCode ReadMessages()
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetIncomingMessage incomingMessage;
+
+                while ((incomingMessage = client.ReadMessage()) != null)
+                {
+                    switch (incomingMessage.MessageType)
+                    {
+                        // Handle connection status messages
+                        case NetIncomingMessageType.StatusChanged:
+                            switch (incomingMessage.SenderConnection.Status)
+                            {
+                                case NetConnectionStatus.Connected:
+                                    OnConnectedToServer();
+                                    break;
+                                case NetConnectionStatus.Disconnected:
+                                    OnDisconnectedFromServer();
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        case NetIncomingMessageType.Data:
+                            //Get the first byte which is the type of message.
+                            NetworkMessageType messageType = (NetworkMessageType)incomingMessage.ReadByte();
+                            inbound.HandleInboundMessage(messageType, incomingMessage);
+                            break;
+                    }
+                }
+
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
         }
 
         private static void OnConnectedToServer()
         {
             connectionStatus = ConnectionStatus.Connected;
-
-            //Log in with our user data and request the server data.
-            outbound.LogIn(true);
-
-            ConnectedToServer?.Invoke();           
+            ConnectedToServer?.Invoke();
         }
 
-        // Method to be called when disconnected from the server
         private static void OnDisconnectedFromServer()
         {
-            connectionStatus = ConnectionStatus.NotConnected;
-
+            connectionStatus = ConnectionStatus.Disconnected;
             DisconnectedFromServer?.Invoke();
         }
-
-        public static void ReadMessages()
-        {
-            if (client == null)
-            {
-                return;
-            }
-
-            NetIncomingMessage incomingMessage;
-
-            while ((incomingMessage = client.ReadMessage()) != null)
-            {
-                switch (incomingMessage.MessageType)
-                {
-                    // Handle connection status messages
-                    case NetIncomingMessageType.StatusChanged:
-                        switch (incomingMessage.SenderConnection.Status)
-                        {
-                            case NetConnectionStatus.Connected:
-                                OnConnectedToServer();
-                                break;
-                            case NetConnectionStatus.Disconnected:
-                                OnDisconnectedFromServer();
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-                    case NetIncomingMessageType.Data:
-                        //Get the first byte which is the type of message.
-                        NetworkMessageType messageType = (NetworkMessageType) incomingMessage.ReadByte();
-                        inbound.HandleInboundMessage(messageType, incomingMessage);
-                        break;
-                }
-            }
-        }        
     }
 }

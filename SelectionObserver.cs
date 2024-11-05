@@ -25,9 +25,10 @@ namespace TeamX
 
         public static void Sync()
         {
-            lastListCount = GameObserver.central.selection.list.Count;
+            lastListCount = GameObserver.GetCentral().selection.list.Count;
         }
 
+        //This update function will only be called if teamx is enabled.
         public static void Update()
         {
             if(!GameObserver.InLevelEditor())
@@ -35,10 +36,10 @@ namespace TeamX
                 return;
             }
 
-            int currentListCount = GameObserver.central.selection.list.Count;
+            int currentListCount = GameObserver.GetCentral().selection.list.Count;
             if (currentListCount != lastListCount)
             {
-                InspectSelection(GameObserver.central);
+                InspectSelection(GameObserver.GetCentral());
                 lastListCount = currentListCount;
             }
         }       

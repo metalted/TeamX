@@ -17,28 +17,145 @@ namespace TeamX
             this.client = client;
         }        
 
-        public bool LogIn(bool requestServerData = false)
-        {
-            PlayerData localPlayerData = PlayerManagement.GetLocalPlayerData();
-            NetOutgoingMessage logInMessage = CreateLogInMessage(localPlayerData, true);
-
-            if(logInMessage == null)
-            {
-                return false;
-            }
-
-            return SendMessage(logInMessage);
-        }
-
-        public bool SendMessage(NetOutgoingMessage message)
+        public StatusCode LogIn(bool requestServerData = false)
         {
             if (client == null)
             {
-                return false;
+                return StatusCode.ClientNull;
             }
 
+            try
+            {
+                PlayerData localPlayerData = PlayerManagement.GetLocalPlayerData();
+                NetOutgoingMessage logInMessage = CreateLogInMessage(localPlayerData, true);
+                SendMessage(logInMessage);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        public StatusCode SendPlayerState(byte state)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreatePlayerStateDataMessage(state);
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }           
+        }
+
+        public StatusCode SendPlayerTransformData(PlayerTransformData transformData)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreatePlayerTransformDataMessage(transformData.position, transformData.euler, (byte) PlayerManagement.GetLocalCharacterMode()); 
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        public StatusCode SendLevelEditorChanges(List<LevelEditorChange> changes)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreateLevelEditorChangesMessage(changes);
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        public StatusCode SendCustomMessage(string payload)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreateCustomMessage(payload);
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        public StatusCode SendSelectionClaim(List<string> uids)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreateClaimSelectionMessage(uids);
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        public StatusCode SendSelectionUnclaim(List<string> uids)
+        {
+            if (client == null)
+            {
+                return StatusCode.ClientNull;
+            }
+
+            try
+            {
+                NetOutgoingMessage message = CreateUnclaimSelectionMessage(uids);
+                SendMessage(message);
+                return StatusCode.Success;
+            }
+            catch
+            {
+                return StatusCode.Unexpected;
+            }
+        }
+
+        #region Private
+
+        private void SendMessage(NetOutgoingMessage message)
+        {
             client.SendMessage(message, NetDeliveryMethod.ReliableOrdered);
-            return true;
         }
 
         private NetOutgoingMessage CreateLogInMessage(PlayerData playerData, bool requestServerData)
@@ -68,13 +185,16 @@ namespace TeamX
             return message;
         }
 
-        public NetOutgoingMessage CreatePlayerTransformDataMessage(Vector3 position, Vector3 euler, byte state)
+        private NetOutgoingMessage CreatePlayerStateDataMessage(byte state)
         {
-            if(client == null)
-            {
-                return null;
-            }
+            NetOutgoingMessage message = client.CreateMessage();
+            message.Write((byte)NetworkMessageType.PlayerStateData);
+            message.Write(state);
+            return message;
+        }
 
+        private NetOutgoingMessage CreatePlayerTransformDataMessage(Vector3 position, Vector3 euler, byte state)
+        {
             NetOutgoingMessage message = client.CreateMessage();
             message.Write((byte)NetworkMessageType.PlayerTransformData);
             message.Write(position.x);
@@ -87,26 +207,8 @@ namespace TeamX
             return message;
         }
 
-        public NetOutgoingMessage CreatePlayerStateDataMessage(byte state)
+        private NetOutgoingMessage CreateLevelEditorChangesMessage(List<LevelEditorChange> changes)
         {
-            if (client == null)
-            {
-                return null;
-            }
-
-            NetOutgoingMessage message = client.CreateMessage();
-            message.Write((byte)NetworkMessageType.PlayerStateData);
-            message.Write(state);
-            return message;
-        }
-
-        public NetOutgoingMessage CreateLevelEditorChangesMessage(List<LevelEditorChange> changes)
-        {
-            if (client == null)
-            {
-                return null;
-            }
-
             NetOutgoingMessage message = client.CreateMessage();
             message.Write((byte)NetworkMessageType.LevelEditorChangeEvents);
             message.Write(changes.Count);
@@ -142,7 +244,7 @@ namespace TeamX
             return message;
         }
 
-        public NetOutgoingMessage CreateCustomMessage(string payload)
+        private NetOutgoingMessage CreateCustomMessage(string payload)
         {
             if (client == null)
             {
@@ -155,13 +257,8 @@ namespace TeamX
             return message;
         }       
         
-        public NetOutgoingMessage CreateClaimSelectionMessage(List<string> blockUIDs)
+        private NetOutgoingMessage CreateClaimSelectionMessage(List<string> blockUIDs)
         {
-            if (client == null)
-            {
-                return null;
-            }
-
             NetOutgoingMessage message = client.CreateMessage();
             message.Write((byte)NetworkMessageType.ClaimSelectionEvent);
             message.Write(blockUIDs.Count);
@@ -172,13 +269,8 @@ namespace TeamX
             return message;
         }
 
-        public NetOutgoingMessage CreateUnclaimSelectionMessage(List<string> blockUIDs)
+        private NetOutgoingMessage CreateUnclaimSelectionMessage(List<string> blockUIDs)
         {
-            if (client == null)
-            {
-                return null;
-            }
-
             NetOutgoingMessage message = client.CreateMessage();
             message.Write((byte)NetworkMessageType.UnclaimSelectionEvent);
             message.Write(blockUIDs.Count);
@@ -188,5 +280,6 @@ namespace TeamX
             }
             return message;
         }
+        #endregion
     }
 }

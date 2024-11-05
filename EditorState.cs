@@ -15,12 +15,53 @@ namespace TeamX
         private static int floor;
 
         public static void SubscribeToEvents()
-        {
-            //Listen to all the block changes.
+        {            
+            //This event is only fired when teamx is enabled.
             EditorObserver.LevelEditorChangesEvent += StoreChanges;
+            //This event is only fired when the server is running.
             NetworkController.LevelEditorChangesEvent += StoreChanges;
         }
 
+        //Clear the current state.
+        public static bool Clear()
+        {
+            blocks.Clear();
+            skybox = 0;
+            floor = -1;
+            return true;
+        }
+
+        //Set a state, currently called when we have received the editor state from the server.
+        public static bool SetState(EditorStateData data)
+        {
+            Clear();
+
+            foreach (string s in data.blocks)
+            {
+                AddBlock(s);
+            }
+
+            SetSkybox(data.skybox);
+            SetFloor(data.floor);
+
+            return true;
+        }
+
+        //Is called when we come back into the level editor, and we load in the current state.
+        public static EditorStateData GetState()
+        {
+            EditorStateData state = new EditorStateData();
+            foreach (BlockPropertyJSON blockPropertyJSON in blocks.Values)
+            {
+                string blockJSON = LEV_UndoRedo.GetJSONstring(blockPropertyJSON);
+                state.blocks.Add(blockJSON);
+            }
+            state.skybox = skybox;
+            state.floor = floor;
+            return state;
+        }
+
+        //Called from local and remote changes.
         private static void StoreChanges(List<LevelEditorChange> changes)
         {
             foreach (LevelEditorChange change in changes)
@@ -44,15 +85,7 @@ namespace TeamX
                         break;
                 }
             }
-        }
-
-        public static bool Clear()
-        {
-            blocks.Clear();
-            skybox = 0;
-            floor = -1;
-            return true;
-        }
+        }        
 
         private static bool AddBlock(string blockJSON)
         {
@@ -97,62 +130,6 @@ namespace TeamX
         {
             floor = floorID;
             return true;
-        }
-
-        public static IEnumerator LoadCurrentState()
-        {
-            yield return new WaitForEndOfFrame();
-
-            EditorStateData state = GetState();
-            EditorModifier.UpdateFloor(state.floor);
-            EditorModifier.UpdateSkybox(state.skybox);
-            foreach(string block in state.blocks)
-            {
-                EditorModifier.CreateBlock(block);
-            }
-
-            GameObserver.central.validation.RecalcBlocksAndDraw(false);
-        }
-
-        public static bool SetState(EditorStateData data)
-        {
-            Clear();
-
-            foreach(string s in data.blocks)
-            {
-                AddBlock(s);
-            }
-
-            SetSkybox(data.skybox);
-            SetFloor(data.floor);
-
-            return true;
-        }
-
-        public static EditorStateData GetState()
-        {
-            EditorStateData state = new EditorStateData();
-            foreach(BlockPropertyJSON blockPropertyJSON in blocks.Values)
-            {
-                string blockJSON = LEV_UndoRedo.GetJSONstring(blockPropertyJSON);
-                state.blocks.Add(blockJSON);
-            }
-            state.skybox = GetSkybox();
-            state.floor = GetFloor();
-            return state;
-        }
-
-        public static BlockPropertyJSON GetBlock(string blockUID)
-        {
-            if (blocks.ContainsKey(blockUID))
-            {
-                return blocks[blockUID];
-            }
-            return null;
-        }
-
-        public static int GetSkybox() { return skybox; }
-
-        public static int GetFloor() { return floor; }
+        }        
     }
 }

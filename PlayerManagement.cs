@@ -7,49 +7,45 @@ namespace TeamX
 {
     public static class PlayerManagement
     {
-        public static Shpleeble shpleeblePrefab;
-        public static Dictionary<int, Shpleeble> remotePlayers = new Dictionary<int, Shpleeble>();
-        public static bool showRemotePlayers = true;
-        public static CharacterMode localCharacterMode = CharacterMode.Build;
+        private static Shpleeble shpleeblePrefab;
+        private static Dictionary<int, Shpleeble> remotePlayers = new Dictionary<int, Shpleeble>();
+        private static CharacterMode localCharacterMode = CharacterMode.Build;
 
         public static void SubscribeToEvents()
         {
+            //This event is always called
             GameObserver.EnteredMainMenu += ProcessMainMenuEntry;
+
+            //These event are only called when the network is running.
             NetworkController.ServerPlayerDataEvent += ProcessServerPlayerData;
             NetworkController.PlayerJoinedEvent += ProcessRemotePlayerJoin;
             NetworkController.PlayerLeftEvent += ProcessRemotePlayerLeft;
             NetworkController.PlayerTransformEvent += ProcessRemotePlayerTransformData;
             NetworkController.PlayerStateEvent += ProcessRemotePlayerStateData;
 
-            //When we enter the level editor, send state change
-            GameObserver.EnteredLevelEditor += () =>
-            {
-                localCharacterMode = CharacterMode.Build;
-            };
-
-            //When we go to race mode, send state change
-            GameObserver.EnteredGame += () =>
-            {
-                localCharacterMode = CharacterMode.Race;
-            };
-
-            //State change during racing
-            GameObserver.LocalStateChange += (stateData) =>
-            {
-                localCharacterMode = (CharacterMode) stateData.state;
-            };
+            //Keep track of the different states of the local character, as we send this along with the transform packages. Only called when teamx is enabled.
+            GameObserver.EnteredLevelEditor += () => { localCharacterMode = CharacterMode.Build; };
+            GameObserver.EnteredGame += () => { localCharacterMode = CharacterMode.Race; };
+            GameObserver.LocalStateChange += (stateData) => { localCharacterMode = (CharacterMode) stateData.state; };
         }
 
-        public static CharacterMode GetLocalCharacterMode()
+        //Clean up all the multiplayer characters and info and create a sphleeble if this is the first time the game starts.
+        private static void ProcessMainMenuEntry()
         {
-            return localCharacterMode;
+            Clear();
+
+            if (shpleeblePrefab == null)
+            {
+                shpleeblePrefab = TeamX.Utils.CreateShpleeblePrefabInMainMenu();
+            }
         }
 
+        //Clean up any player models and references.
         public static void Clear()
         {
-            foreach(Shpleeble shpleeble in remotePlayers.Values)
+            foreach (Shpleeble shpleeble in remotePlayers.Values)
             {
-                if(shpleeble != null)
+                if (shpleeble != null)
                 {
                     GameObject.Destroy(shpleeble.gameObject);
                 }
@@ -58,6 +54,10 @@ namespace TeamX
             remotePlayers.Clear();
         }
 
+        public static CharacterMode GetLocalCharacterMode()
+        {
+            return localCharacterMode;
+        }
         public static PlayerData GetLocalPlayerData()
         {
             PlayerData playerData = new PlayerData();
@@ -84,7 +84,7 @@ namespace TeamX
                 playerData.color_rightLeg = cosmeticIDs.color_rightLeg;
                 playerData.color = cosmeticIDs.color;
             }
-            catch (Exception e)
+            catch
             {
                 playerData.name = "Sphleeble";
                 playerData.hat = 23000;
@@ -108,7 +108,6 @@ namespace TeamX
 
             return playerData;
         }
-
         public static PlayerData GetRemotePlayerData(int playerID)
         {
             if(!remotePlayers.ContainsKey(playerID))
@@ -130,12 +129,11 @@ namespace TeamX
             GameObject.DontDestroyOnLoad(remotePlayer);
             remotePlayer.SetPlayerData(playerData);
             remotePlayers.Add(playerData.playerID, remotePlayer);
-            remotePlayer.gameObject.SetActive(showRemotePlayers);
+            remotePlayer.gameObject.SetActive(TeamXConfiguration.showPlayers.Value);
             remotePlayer.Activate();
 
             return true;
         }       
-
         private static bool DestroyRemotePlayer(int playerID)
         {
             if (!remotePlayers.ContainsKey(playerID))
@@ -148,6 +146,7 @@ namespace TeamX
             return true;
         }
 
+        //Process network messages
         private static void ProcessServerPlayerData(List<PlayerData> data)
         {
             foreach (PlayerData playerData in data)
@@ -155,7 +154,6 @@ namespace TeamX
                 CreateRemotePlayer(playerData);
             }
         }
-
         private static void ProcessRemotePlayerJoin(PlayerData data)
         {
             if (remotePlayers.ContainsKey(data.playerID))
@@ -165,7 +163,6 @@ namespace TeamX
 
             CreateRemotePlayer(data);
         }
-
         private static void ProcessRemotePlayerLeft(PlayerData data)
         {
             if (!remotePlayers.ContainsKey(data.playerID))
@@ -175,7 +172,6 @@ namespace TeamX
 
             DestroyRemotePlayer(data.playerID);
         }
-
         private static void ProcessRemotePlayerTransformData(PlayerTransformData playerTransformData)
         {
             if(!remotePlayers.ContainsKey(playerTransformData.playerID))
@@ -185,7 +181,6 @@ namespace TeamX
 
             remotePlayers[playerTransformData.playerID].UpdateTransform(playerTransformData.position, playerTransformData.euler);
         }
-
         private static void ProcessRemotePlayerStateData(PlayerStateData playerStateData)
         {
             if (!remotePlayers.ContainsKey(playerStateData.playerID))
@@ -194,16 +189,6 @@ namespace TeamX
             }
 
             remotePlayers[playerStateData.playerID].SetMode(playerStateData.state);
-        }
-    
-        private static void ProcessMainMenuEntry()
-        {
-            Clear();
-
-            if (shpleeblePrefab == null)
-            {
-                shpleeblePrefab = TeamX.Utils.CreateShpleeblePrefabInMainMenu();
-            }
-        }
+        }   
     }
 }
